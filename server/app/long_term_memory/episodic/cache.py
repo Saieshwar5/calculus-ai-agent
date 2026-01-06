@@ -10,7 +10,7 @@ from redis.asyncio import Redis
 import logging
 
 from app.db.redis_config import get_redis
-from app.schemas.pydantic_schemas.episodic_memory_schema import EpisodicMemoryResponse
+from app.schemas.pydantic_schemas.memory.episodic import EpisodicMemoryResponse
 
 logger = logging.getLogger(__name__)
 

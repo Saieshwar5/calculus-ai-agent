@@ -10,8 +10,8 @@ from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import logging
 
-from app.services.embedding_service import get_embedding_service
-from app.schemas.pydantic_schemas.episodic_memory_schema import EpisodicMemoryCreate
+from app.long_term_memory.shared.embedding import get_embedding_service
+from app.schemas.pydantic_schemas.memory.episodic import EpisodicMemoryCreate
 
 logger = logging.getLogger(__name__)
 

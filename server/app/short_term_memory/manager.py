@@ -10,7 +10,7 @@ from typing import List, Optional
 from redis.asyncio import Redis
 
 from app.db.redis_config import get_redis, MEMORY_TTL_SECONDS
-from app.schemas.pydantic_schemas.memory_schema import Message
+from app.schemas.pydantic_schemas.memory.short_term import Message
 
 
 class MemoryManager:
@@ -224,7 +224,7 @@ async def get_memory_manager() -> MemoryManager:
     Get MemoryManager instance (singleton pattern).
     
     Usage in FastAPI routes:
-        from app.services.memory_manager import get_memory_manager
+        from app.short_term_memory import get_memory_manager
         @app.get("/items")
         async def read_items(memory: MemoryManager = Depends(get_memory_manager)):
             ...

@@ -4,7 +4,10 @@ import Button from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import ConfigurationDropdown from "./ConfigurationDropdown";
 import useLearningPreferenceStore from "@/app/context/learningPreferenceContext";
+import { useButtonsStore } from "@/app/context/buttonsStore";
 import { IoDocumentAttachOutline } from "react-icons/io5";
+import { IoClose } from "react-icons/io5";
+import { FaBookOpen } from "react-icons/fa";
 
 
 interface SearchContainerProps {
@@ -38,6 +41,12 @@ export default function SearchContainer({
     clearError,
     hasChanges,
   } = useLearningPreferenceStore();
+
+  const { isCreatingLearningPlan, setCreatingLearningPlan } = useButtonsStore();
+
+  const handleCancelLearningPlan = () => {
+    setCreatingLearningPlan(false);
+  };
 
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
@@ -130,8 +139,29 @@ export default function SearchContainer({
 
   return (
     <div className="w-full max-w-2xl mx-auto">
+      {/* Learning Plan Mode Indicator */}
+      {isCreatingLearningPlan && (
+        <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-t-xl px-4 py-2 mb-0">
+          <div className="flex items-center gap-2">
+            <FaBookOpen className="w-4 h-4 text-teal-600" />
+            <span className="text-sm font-medium text-teal-700">Creating Learning Plan</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCancelLearningPlan}
+            className="p-1 rounded-full hover:bg-teal-100 transition-colors text-teal-600 hover:text-teal-800"
+            title="Cancel learning plan creation"
+          >
+            <IoClose className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="w-full">
-        <div className="relative flex flex-col bg-white border-2 border-gray-200 rounded-xl p-1 transition-all duration-200 focus-within:border-black focus-within:shadow-lg focus-within:shadow-blue-100">
+        <div className={`relative flex flex-col bg-white border-2 border-gray-200 p-1 transition-all duration-200 focus-within:border-black focus-within:shadow-lg focus-within:shadow-blue-100 ${
+          isCreatingLearningPlan 
+            ? 'rounded-b-xl rounded-t-none border-t-0 border-teal-200 focus-within:border-teal-400' 
+            : 'rounded-xl'
+        }`}>
           
        
           {files.length > 0 && (
@@ -212,7 +242,7 @@ export default function SearchContainer({
               value={query}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={placeholder}
+              placeholder={isCreatingLearningPlan ? "Describe what you want to learn..." : placeholder}
               disabled={disabled}
               rows={1}
               className="flex-1 border-none outline-none px-2 py-3 text-base bg-transparent text-gray-700 placeholder-gray-400 disabled:opacity-60 disabled:cursor-not-allowed resize-none overflow-y-auto min-h-[44px] max-h-[200px]"

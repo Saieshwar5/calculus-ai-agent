@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import logging
 
-from app.services.episodic_memory_extractor import get_episodic_memory_extractor
-from app.services.episodic_memory_cache import get_episodic_memory_cache
-from app.services.response_summarizer import get_response_summarizer
-from app.db.crud.episodic_memory_crud import create_episodic_memory
+from app.long_term_memory.episodic.extractor import get_episodic_memory_extractor
+from app.long_term_memory.episodic.cache import get_episodic_memory_cache
+from app.long_term_memory.shared.summarizer import get_response_summarizer
+from app.db.crud.memory.episodic import create_episodic_memory
 from app.db.crud.query_crud import (
     get_queries_by_user_id,
     get_unused_query_pairs,
@@ -21,8 +21,8 @@ from app.db.crud.query_crud import (
     mark_queries_as_used
 )
 from app.models.query_model import Query
-from app.services.memory_manager import MemoryManager
-from app.schemas.pydantic_schemas.episodic_memory_schema import EpisodicMemoryExtractionRequest
+from app.short_term_memory.manager import MemoryManager
+from app.schemas.pydantic_schemas.memory.episodic import EpisodicMemoryExtractionRequest
 
 logger = logging.getLogger(__name__)
 

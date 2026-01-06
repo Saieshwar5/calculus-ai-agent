@@ -6,9 +6,9 @@ from typing import Dict, Any, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
-from app.services.memory_validator import MemoryValidator
-from app.services.memory_queue import get_memory_queue
-from app.db.crud.semantic_memory_crud import (
+from app.long_term_memory.shared.validator import MemoryValidator
+from app.long_term_memory.shared.queue import get_memory_queue
+from app.db.crud.memory.semantic import (
     get_semantic_memory_by_user_id,
     create_semantic_memory,
     update_semantic_memory,
@@ -17,7 +17,7 @@ from app.db.crud.semantic_memory_crud import (
     get_or_create_semantic_memory,
     query_semantic_memory
 )
-from app.schemas.pydantic_schemas.semantic_memory_schema import (
+from app.schemas.pydantic_schemas.memory.semantic import (
     SemanticMemoryCreate,
     SemanticMemoryUpdate
 )

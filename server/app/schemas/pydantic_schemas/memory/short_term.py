@@ -1,3 +1,6 @@
+"""
+Pydantic schemas for short-term memory operations.
+"""
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal, List, Optional
 from datetime import datetime

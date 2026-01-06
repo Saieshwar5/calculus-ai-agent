@@ -14,10 +14,10 @@ from app.db.crud.query_crud import (
     get_unused_query_pairs,
     mark_queries_as_used
 )
-from app.services.response_summarizer import get_response_summarizer
-from app.services.episodic_memory_extractor import get_episodic_memory_extractor
-from app.services.episodic_memory_cache import get_episodic_memory_cache
-from app.db.crud.episodic_memory_crud import create_episodic_memory
+from app.long_term_memory.shared.summarizer import get_response_summarizer
+from app.long_term_memory.episodic.extractor import get_episodic_memory_extractor
+from app.long_term_memory.episodic.cache import get_episodic_memory_cache
+from app.db.crud.memory.episodic import create_episodic_memory
 
 logger = logging.getLogger(__name__)
 

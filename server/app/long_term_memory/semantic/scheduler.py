@@ -13,19 +13,19 @@ from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
 
 from app.db.my_sql_config import AsyncSessionLocal
-from app.db.crud.episodic_memory_crud import (
+from app.db.crud.memory.episodic import (
     get_users_with_unprocessed_episodes,
     get_unprocessed_episodes_for_semantic,
     mark_episodes_as_semantic_processed,
     count_unprocessed_episodes_for_semantic
 )
-from app.db.crud.semantic_memory_crud import (
+from app.db.crud.memory.semantic import (
     get_semantic_memory_by_user_id,
     merge_semantic_memory,
     get_or_create_semantic_memory
 )
-from app.services.semantic_memory_extractor import get_semantic_memory_extractor
-from app.services.memory_validator import MemoryValidator
+from app.long_term_memory.semantic.extractor import get_semantic_memory_extractor
+from app.long_term_memory.shared.validator import MemoryValidator
 
 logger = logging.getLogger(__name__)
 

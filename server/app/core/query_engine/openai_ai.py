@@ -10,13 +10,14 @@ from openai import AsyncOpenAI
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.memory_manager import MemoryManager
-from app.schemas.pydantic_schemas.memory_schema import Message
+from app.short_term_memory.manager import MemoryManager
+from app.schemas.pydantic_schemas.memory.short_term import Message
 from app.core.query_engine.openai_tools import (
     get_episodic_memory_functions,
+    get_web_search_functions,
     execute_function_call
 )
-from app.db.crud.semantic_memory_crud import get_semantic_memory_by_user_id
+from app.db.crud.memory.semantic import get_semantic_memory_by_user_id
 
 # Load environment variables
 load_dotenv()
@@ -90,10 +91,11 @@ async def stream_openai_response(
     max_tokens: Optional[int] = None,
     enable_function_calling: bool = True,
     use_memory_queue: bool = False,
+    rag_context: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream OpenAI response for a user query with conversation context.
-    Automatically includes semantic memory data in the system message context.
+    Automatically includes semantic memory data and RAG context in the system message.
     
     Args:
         query_text: User's query text
@@ -105,6 +107,7 @@ async def stream_openai_response(
         max_tokens: Maximum tokens in response (None = model default)
         enable_function_calling: Whether to enable function calling (currently no tools available)
         use_memory_queue: Whether to use async queue for memory operations (default: False for immediate processing)
+        rag_context: Optional context retrieved from user's documents via RAG
     
     Yields:
         Response text chunks as they arrive from OpenAI
@@ -119,10 +122,18 @@ async def stream_openai_response(
         # Convert memory messages to OpenAI format
         messages = []
         
-        # Add system message with semantic memory context
+        # Add system message with semantic memory context and RAG context
         system_content = "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
+        system_content += "Use the below user context and preferences to understand the user's and respond accordingly"
+        
+        # Add semantic memory context (user preferences, past interactions)
         if semantic_memory_context:
             system_content += semantic_memory_context
+        
+        # Add RAG context from user's documents
+        if rag_context:
+            system_content += "\n\nWhen answering questions, prioritize information from the user's documents provided below. Cite the source filename when using document content."
+            system_content += rag_context
         
         system_message = {
             "role": "system",
@@ -156,10 +167,10 @@ async def stream_openai_response(
         
         # Add function calling tools if enabled and tools are available
         if enable_function_calling:
-            # Combine semantic memory functions (empty) with episodic memory functions
-
+            # Combine all available tools: episodic memory + web search
             episodic_tools = get_episodic_memory_functions()
-            tools = episodic_tools
+            web_search_tools = get_web_search_functions()
+            tools = episodic_tools + web_search_tools
             
             # Only add tools if there are any available
             if tools:

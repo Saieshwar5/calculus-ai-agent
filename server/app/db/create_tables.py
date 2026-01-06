@@ -9,8 +9,8 @@ from app.models.profile_model import Profile  # Import models to register them
 from app.models.query_model import Query  # Import models to register them
 from app.models.learning_preference_model import LearningPreference  # Import models to register them
 from app.models.user_model import User  # Import User model to register it
-from app.models.semantic_memory_model import SemanticMemory  # Import SemanticMemory model to register it
-from app.models.episodic_memory_model import EpisodicMemory  # Import EpisodicMemory model to register it
+from app.models.memory.semantic import SemanticMemory  # Import SemanticMemory model to register it
+from app.models.memory.episodic import EpisodicMemory  # Import EpisodicMemory model to register it
 
 
 async def create_tables():

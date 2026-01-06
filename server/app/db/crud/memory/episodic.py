@@ -10,12 +10,12 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import logging
 
-from app.models.episodic_memory_model import EpisodicMemory
-from app.schemas.pydantic_schemas.episodic_memory_schema import (
+from app.models.memory.episodic import EpisodicMemory
+from app.schemas.pydantic_schemas.memory.episodic import (
     EpisodicMemoryCreate,
     EpisodicMemoryFilters
 )
-from app.services.embedding_service import get_embedding_service
+from app.long_term_memory.shared.embedding import get_embedding_service
 
 logger = logging.getLogger(__name__)
 
@@ -512,7 +512,3 @@ async def mark_episodes_as_semantic_processed(
         logger.error(f"Error marking episodes as semantic processed: {e}")
         raise ValueError(f"Error marking episodes as semantic processed: {str(e)}")
 
-
-
-
-    

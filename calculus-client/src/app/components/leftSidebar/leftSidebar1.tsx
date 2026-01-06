@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   IoMdAdd
@@ -10,6 +10,7 @@ import { FaBookOpen, FaUser, FaHistory } from "react-icons/fa";
 
 import { GiArchiveResearch } from "react-icons/gi";
 import AccountModal from "../modals/AccountModal";
+import LearningList from "./LearningList";
 
 interface SidebarItem {
   id: string
@@ -148,19 +149,24 @@ export default function LeftSideBar1({ changeSidebarState, expanded , onProfileC
          
       </div>
 
-      {/* Blue Container - Only visible when expanded, takes remaining space */}
+      {/* Expanded Container - Only visible when expanded, takes remaining space */}
       <div 
-        className={`items-center justify-center bg-blue-500 h-full ${expanded ? "flex flex-1" : "hidden"}`}
-       
+        className={`flex-col bg-gray-50 h-full border-l border-gray-200 ${expanded ? "flex flex-1" : "hidden"}`}
       >
-        <button
-          onClick={handleAddClick}
-          title="Add New Interest"
-          className="flex flex-col items-center gap-2 p-2"
-        >
-          <IoMdAdd className="w-5 h-5" />
-          <span className="text-xs">Expand</span>
-        </button>
+        {activeItem === "learning" ? (
+          <LearningList onAddClick={handleAddClick} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <button
+              onClick={handleAddClick}
+              title="Add New Interest"
+              className="flex flex-col items-center gap-2 p-2 text-gray-500 hover:text-teal-600 transition-colors"
+            >
+              <IoMdAdd className="w-5 h-5" />
+              <span className="text-xs">Add New</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modals */}

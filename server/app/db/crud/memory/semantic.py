@@ -7,8 +7,8 @@ from sqlalchemy import select
 from typing import Optional, Dict, Any
 from sqlalchemy.dialects.postgresql import JSONB
 
-from app.models.semantic_memory_model import SemanticMemory
-from app.schemas.pydantic_schemas.semantic_memory_schema import (
+from app.models.memory.semantic import SemanticMemory
+from app.schemas.pydantic_schemas.memory.semantic import (
     SemanticMemoryCreate,
     SemanticMemoryUpdate,
     SemanticMemoryPartialUpdate

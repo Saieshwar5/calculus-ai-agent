@@ -11,7 +11,7 @@ from datetime import datetime
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
-from app.models.episodic_memory_model import EpisodicMemory
+from app.models.memory.episodic import EpisodicMemory
 
 logger = logging.getLogger(__name__)
 

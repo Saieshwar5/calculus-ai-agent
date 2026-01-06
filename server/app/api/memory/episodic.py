@@ -10,18 +10,18 @@ import hashlib
 import logging
 
 from app.db.my_sql_config import get_db
-from app.services.memory_manager import MemoryManager, get_memory_manager
-from app.services.episodic_memory_processor import get_episodic_memory_processor
-from app.services.episodic_memory_cache import get_episodic_memory_cache
-from app.services.embedding_service import get_embedding_service
-from app.db.crud.episodic_memory_crud import (
+from app.short_term_memory.manager import MemoryManager, get_memory_manager
+from app.long_term_memory.episodic.processor import get_episodic_memory_processor
+from app.long_term_memory.episodic.cache import get_episodic_memory_cache
+from app.long_term_memory.shared.embedding import get_embedding_service
+from app.db.crud.memory.episodic import (
     get_episodic_memories_by_user,
-    get_recent_episodic_memories,
+    get_recent_episodic_memories as crud_get_recent_episodic_memories,
     search_episodes_by_context,
-    delete_episodic_memory,
+    delete_episodic_memory as crud_delete_episodic_memory,
     get_episodic_memory_by_id
 )
-from app.schemas.pydantic_schemas.episodic_memory_schema import (
+from app.schemas.pydantic_schemas.memory.episodic import (
     EpisodicMemoryResponse,
     EpisodicMemorySearchRequest,
     EpisodicMemoryFilters,
@@ -207,7 +207,7 @@ async def get_recent_episodic_memories(
             return [EpisodicMemoryResponse.model_validate(ep) for ep in cached_episodes[:limit]]
         
         # Fallback to database
-        episodes = await get_recent_episodic_memories(
+        episodes = await crud_get_recent_episodic_memories(
             db=db,
             user_id=user_id,
             days=days,
@@ -261,7 +261,6 @@ async def delete_episodic_memory(
             raise HTTPException(status_code=404, detail="Episode not found")
         
         # Delete from database
-        from app.db.crud.episodic_memory_crud import delete_episodic_memory as crud_delete_episodic_memory
         deleted = await crud_delete_episodic_memory(db, episode_id)
         
         if deleted:

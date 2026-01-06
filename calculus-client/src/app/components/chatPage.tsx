@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useMemo } from "react";
 import { Message } from "@/app/types/message";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 
 interface ChatPageProps {
   messages: Message[];
@@ -72,9 +76,20 @@ export default function ChatPage({ messages, isTyping, showExamples = false }: C
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm whitespace-pre-wrap break-words">
-                        {message.text}
-                      </p>
+                      {isAssistant ? (
+                        <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-2 prose-code:text-pink-500 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeHighlight]}
+                          >
+                            {message.text}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap break-words">
+                          {message.text}
+                        </p>
+                      )}
                       <p
                         className={`text-xs mt-2 ${
                           isUser ? "text-gray-500" : "text-gray-500"
