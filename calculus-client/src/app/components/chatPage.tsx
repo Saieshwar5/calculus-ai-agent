@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
+import LearningPlanCard from "./LearningPlanCard";
 
 interface ChatPageProps {
   messages: Message[];
@@ -63,7 +64,9 @@ export default function ChatPage({ messages, isTyping, showExamples = false }: C
                 className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}
               >
                 <div
-                  className={`max-w-[80%] lg:max-w-[70%] px-4 py-3 rounded-2xl ${
+                  className={`${
+                    message.learningPlan ? "max-w-[95%]" : "max-w-[80%] lg:max-w-[70%]"
+                  } px-4 py-3 rounded-2xl ${
                     isUser
                       ? "bg-white text-black rounded-br-none"
                       : "bg-white text-gray-800 rounded-bl-none border border-gray-200"
@@ -77,14 +80,43 @@ export default function ChatPage({ messages, isTyping, showExamples = false }: C
                     )}
                     <div className="flex-1 min-w-0">
                       {isAssistant ? (
-                        <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-2 prose-code:text-pink-500 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            rehypePlugins={[rehypeHighlight]}
-                          >
-                            {message.text}
-                          </ReactMarkdown>
-                        </div>
+                        <>
+                          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-2 prose-code:text-pink-500 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              rehypePlugins={[rehypeHighlight]}
+                            >
+                              {message.text}
+                            </ReactMarkdown>
+                          </div>
+
+                          {/* Show loading spinner while generating learning plan */}
+                          {message.isStreaming && !message.learningPlan && (
+                            <div className="mt-4 flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex gap-1">
+                                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
+                                <div
+                                  className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
+                                  style={{ animationDelay: "0.1s" }}
+                                ></div>
+                                <div
+                                  className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
+                                  style={{ animationDelay: "0.2s" }}
+                                ></div>
+                              </div>
+                              <span className="text-sm text-blue-700 font-medium">
+                                Generating your personalized learning plan...
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Display Learning Plan Card if available */}
+                          {message.learningPlan && (
+                            <div className="mt-4">
+                              <LearningPlanCard plan={message.learningPlan} />
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <p className="text-sm whitespace-pre-wrap break-words">
                           {message.text}

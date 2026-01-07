@@ -1,31 +1,45 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useLearningPlanStore, LearningPlan } from "@/app/context/learningPlan"
+import { useContentGenerationStore } from "@/app/context/contentGenerationStore"
 import { FaBookOpen, FaClock, FaLayerGroup, FaChevronDown, FaChevronRight } from "react-icons/fa"
 
 export default function LearningPlanPage() {
   const params = useParams()
+  const router = useRouter()
   const planId = params.planId as string
-  
+
   const { plans, fetchPlans, isLoading, addSelectedPlan } = useLearningPlanStore()
+  const { startContentGeneration } = useContentGenerationStore()
   const [plan, setPlan] = useState<LearningPlan | null>(null)
   const [expandedSubjects, setExpandedSubjects] = useState<Set<number>>(new Set())
   const [hasFetched, setHasFetched] = useState(false)
+  const [generatingContent, setGeneratingContent] = useState(false)
 
   // Fetch plans if not already loaded
   useEffect(() => {
+    console.log("🎯 Learning Plan Page mounted with planId:", planId);
     if (plans.length === 0 && !hasFetched) {
+      console.log("📥 Fetching plans...");
       fetchPlans()
       setHasFetched(true)
+    } else {
+      console.log("✅ Plans already loaded:", plans.length);
     }
   }, [plans.length, fetchPlans, hasFetched])
 
   // Find the plan when plans are loaded
   useEffect(() => {
     if (planId && plans.length > 0) {
+      console.log("🔍 Looking for plan with ID:", planId);
       const foundPlan = plans.find(p => p.plan_id === planId)
+      console.log("📋 Found plan:", foundPlan?.title);
+      console.log("📚 Subjects:", foundPlan?.subjects.length);
+      foundPlan?.subjects.forEach((s, i) => {
+        console.log(`   Subject ${i + 1}: ${s.name} - ${s.concepts?.length || 0} concepts`);
+      });
       setPlan(foundPlan || null)
       if (foundPlan) {
         addSelectedPlan(foundPlan.plan_id)
@@ -34,15 +48,60 @@ export default function LearningPlanPage() {
   }, [planId, plans, addSelectedPlan])
 
   const toggleSubject = (index: number) => {
+    console.log(`📖 Toggling subject at index ${index}`);
     setExpandedSubjects(prev => {
       const newSet = new Set(prev)
       if (newSet.has(index)) {
+        console.log(`   Collapsing subject ${index}`);
         newSet.delete(index)
       } else {
+        console.log(`   Expanding subject ${index}`);
         newSet.add(index)
       }
       return newSet
     })
+  }
+
+  const handleConceptClick = async (subjectName: string, conceptName: string) => {
+    console.log("========================================");
+    console.log("🔥 CONCEPT CLICKED!");
+    console.log("Plan ID:", planId);
+    console.log("Subject:", subjectName);
+    console.log("Concept:", conceptName);
+    console.log("========================================");
+
+    if (generatingContent) {
+      console.warn("⏳ Already generating content, please wait...");
+      return;
+    }
+
+    try {
+      setGeneratingContent(true);
+
+      // TODO: Get actual user ID from auth context
+      const userId = "123e4567-e89b-12d3-b456-426613479";
+      
+
+      console.log("🚀 Starting content generation...");
+      console.log("   User ID:", userId);
+      console.log("   Course ID:", planId);
+      console.log("   Subject:", subjectName);
+      console.log("   Concept:", conceptName);
+
+      // Start content generation
+      await startContentGeneration(userId, planId, subjectName, conceptName);
+
+      console.log("✅ Content generation started successfully");
+
+      // Navigate to content display page
+      const contentUrl = `/learning/${planId}/content`;
+      console.log("🔀 Navigating to:", contentUrl);
+      router.push(contentUrl);
+
+    } catch (error) {
+      console.error("❌ Error starting content generation:", error);
+      setGeneratingContent(false);
+    }
   }
 
   const formatDuration = (minutes: number) => {
@@ -184,18 +243,26 @@ export default function LearningPlanPage() {
               {expandedSubjects.has(index) && subject.concepts && subject.concepts.length > 0 && (
                 <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-                    Concepts to Cover
+                    Click on any concept to start learning
                   </p>
                   <ul className="space-y-2">
                     {subject.concepts.map((concept, conceptIndex) => (
-                      <li 
+                      <li
                         key={conceptIndex}
-                        className="flex items-center gap-3 p-3 bg-white rounded-md border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 transition-colors cursor-pointer"
+                        onClick={() => handleConceptClick(subject.name, concept.name)}
+                        className={`flex items-center gap-3 p-3 bg-white rounded-md border border-gray-100 transition-colors ${
+                          generatingContent
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'hover:border-teal-200 hover:bg-teal-50/30 cursor-pointer'
+                        }`}
                       >
                         <span className="flex-shrink-0 w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs text-gray-500 font-medium">
                           {conceptIndex + 1}
                         </span>
                         <span className="text-gray-700">{concept.name}</span>
+                        {!generatingContent && (
+                          <span className="ml-auto text-xs text-teal-600">Learn →</span>
+                        )}
                       </li>
                     ))}
                   </ul>

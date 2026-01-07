@@ -41,21 +41,23 @@ const mockLearningPlans: LearningPlan[] = [
 
 /**
  * Fetch learning plans from server with fallback to mock data
- * Endpoint: GET /api/v1/learningplans/
+ * Endpoint: GET /api/v1/learning-plan/plans/{user_id}
  */
-export async function fetchLearningPlansFromServer(): Promise<{ 
-  success: boolean; 
-  data?: LearningPlan[]; 
-  error?: string 
+export async function fetchLearningPlansFromServer(): Promise<{
+  success: boolean;
+  data?: LearningPlan[];
+  error?: string
 }> {
   try {
-    console.log('📥 Fetching learning plans from server');
-    
-    const response = await fetch(`${API_BASE_URL}/learningplans/`, {
+    // TODO: Get actual user ID from auth context
+    const userId = '123e4567-e89b-12d3-b456-426613479';
+
+    console.log('📥 Fetching learning plans from server for user:', userId);
+
+    const response = await fetch(`${API_BASE_URL}/learning-plan/plans/${userId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-ID': '123e4567-e89b-12d3-a456-426613478',
       },
     });
 
@@ -64,14 +66,25 @@ export async function fetchLearningPlansFromServer(): Promise<{
     }
 
     const data = await response.json();
-    console.log('✅ Learning plans fetched successfully from server');
-    return { success: true, data };
-    
+
+    // Transform camelCase response to match LearningPlan interface
+    const transformedData: LearningPlan[] = data.map((plan: any) => ({
+      plan_id: plan.courseId,  // courseId from server -> plan_id for client
+      title: plan.title,
+      description: plan.description,
+      createdAt: new Date(plan.createdAt),
+      updatedAt: new Date(plan.updatedAt),
+      subjects: plan.planData?.subjects || [],  // Extract subjects from planData
+    }));
+
+    console.log('✅ Learning plans fetched successfully from server:', transformedData.length);
+    return { success: true, data: transformedData };
+
   } catch (error) {
     console.error('❌ Error fetching learning plans from server:', error);
-    return { 
-      success: false, 
-      error: (error as Error).message || 'Failed to fetch learning plans' 
+    return {
+      success: false,
+      error: (error as Error).message || 'Failed to fetch learning plans'
     };
   }
 }
@@ -104,17 +117,20 @@ export async function fetchLearningPlans(): Promise<{
  * @param userId - The user's ID
  * @param onChunk - Callback function called for each chunk received
  * @param onError - Callback function called if an error occurs
- * @param onComplete - Callback function called when streaming completes with the final plan
+ * @param onComplete - Callback function called when streaming completes with the final plan and planId
+ * @param planId - Optional plan ID for continuing an existing conversation
  * @param files - Optional array of files to send with the query
+ * @returns Promise that resolves to the plan ID
  */
 export const streamLearningPlanQuery = async (
   query: string,
   userId: string,
   onChunk: (chunk: string) => void,
   onError?: (error: Error) => void,
-  onComplete?: (plan?: LearningPlan) => void,
+  onComplete?: (planId: string, plan?: LearningPlan) => void,
+  planId?: string | null,
   files?: File[]
-): Promise<void> => {
+): Promise<string | null> => {
   try {
     let body: FormData | string;
     let headers: HeadersInit;
@@ -123,17 +139,20 @@ export const streamLearningPlanQuery = async (
       // If files are provided, use FormData
       const formData = new FormData();
       formData.append("query", query);
+      if (planId) {
+        formData.append("planId", planId);
+      }
       files.forEach((file) => formData.append("files", file));
       body = formData;
       headers = {};
     } else {
       // If no files, use JSON
-      body = JSON.stringify({ query });
+      body = JSON.stringify({ query, planId });
       headers = { "Content-Type": "application/json" };
     }
 
     const response = await fetch(
-      `${API_BASE_URL}/stream-learning-plan/${userId}`,
+      `${API_BASE_URL}/learning-plan/stream-learning-plan/${userId}`,
       {
         method: "POST",
         headers,
@@ -144,6 +163,10 @@ export const streamLearningPlanQuery = async (
     if (!response.ok || !response.body) {
       throw new Error(`Request failed: ${response.statusText}`);
     }
+
+    // Extract X-Plan-ID header from response
+    const responsePlanId = response.headers.get("X-Plan-ID");
+    console.log("📋 Plan ID from header:", responsePlanId);
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -162,21 +185,47 @@ export const streamLearningPlanQuery = async (
       }
     }
 
-    // Try to parse the complete response as a learning plan
+    // Check if response contains FINAL_PLAN marker
     let parsedPlan: LearningPlan | undefined;
-    try {
-      parsedPlan = JSON.parse(fullResponse);
-    } catch {
-      // If parsing fails, the response might not be a complete JSON object
-      console.log("Response is not a valid JSON learning plan");
+    if (fullResponse.includes("FINAL_PLAN")) {
+      try {
+        // Extract JSON after FINAL_PLAN marker
+        const parts = fullResponse.split("FINAL_PLAN");
+        if (parts.length > 1) {
+          const jsonPart = parts[1].trim();
+          const startIdx = jsonPart.indexOf("{");
+          const endIdx = jsonPart.lastIndexOf("}") + 1;
+
+          if (startIdx !== -1 && endIdx > 0) {
+            const jsonStr = jsonPart.substring(startIdx, endIdx);
+            const planData = JSON.parse(jsonStr);
+
+            // Add planId to the parsed plan
+            parsedPlan = {
+              plan_id: responsePlanId || planId || "",
+              title: planData.title,
+              description: planData.description,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              subjects: planData.subjects || []
+            };
+
+            console.log("✅ Parsed final learning plan:", parsedPlan);
+          }
+        }
+      } catch (parseError) {
+        console.warn("⚠️ Failed to parse FINAL_PLAN JSON:", parseError);
+      }
     }
 
-    onComplete?.(parsedPlan);
+    onComplete?.(responsePlanId || "", parsedPlan);
+    return responsePlanId || null;
   } catch (error) {
     console.error("Error in learning plan generation:", error);
     const errorObj =
       error instanceof Error ? error : new Error("An unknown error occurred");
     onError?.(errorObj);
+    return null;
   }
 }
 

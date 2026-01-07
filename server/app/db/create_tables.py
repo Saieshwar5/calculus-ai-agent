@@ -11,6 +11,7 @@ from app.models.learning_preference_model import LearningPreference  # Import mo
 from app.models.user_model import User  # Import User model to register it
 from app.models.memory.semantic import SemanticMemory  # Import SemanticMemory model to register it
 from app.models.memory.episodic import EpisodicMemory  # Import EpisodicMemory model to register it
+from app.models.course_DBs import LearningPlan, CourseSemanticMemory, TopicCompletion  # Import course models
 
 
 async def create_tables():

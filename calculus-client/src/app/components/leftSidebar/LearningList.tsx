@@ -22,12 +22,16 @@ export default function LearningList({ onAddClick }: LearningListProps) {
   }
 
   const handlePlanClick = (planId: string) => {
+    console.log("🎯 Learning plan clicked in sidebar!");
+    console.log("   Plan ID:", planId);
     addSelectedPlan(planId)
+    console.log("   Navigating to /learning/" + planId);
     router.push(`/learning/${planId}`)
   }
 
   // Fetch learning plans on mount
   useEffect(() => {
+    console.log("📚 LearningList component mounted - fetching plans");
     fetchPlans()
   }, [fetchPlans])
 

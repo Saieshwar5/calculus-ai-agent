@@ -1,0 +1,220 @@
+/**
+ * Content Generation API
+ *
+ * Handles streaming educational content generation and topic completion tracking
+ * for learning plans.
+ */
+
+const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+
+
+/**
+ * Stream content generation for a subject in a learning plan
+ *
+ * @param userId - The user's ID
+ * @param courseId - The learning plan/course ID (planId)
+ * @param subjectName - The subject name to generate content for
+ * @param conceptName - Optional specific concept name to generate content for
+ * @param onChunk - Callback function called for each chunk received
+ * @param onError - Callback function called if an error occurs
+ * @param onComplete - Callback function called when streaming completes with topic name
+ * @returns Promise that resolves when streaming is complete
+ */
+export const streamContentGeneration = async (
+  userId: string,
+  courseId: string,
+  subjectName: string,
+  conceptName?: string,
+  onChunk?: (chunk: string) => void,
+  onError?: (error: Error) => void,
+  onComplete?: (topicName?: string) => void
+): Promise<void> => {
+  try {
+    console.log(`🎓 Streaming content for ${conceptName ? `concept: ${conceptName} in` : ''} subject: ${subjectName}`);
+    console.log(`   User: ${userId}, Course: ${courseId}`);
+
+    const response = await fetch(
+      `${API_BASE_URL}/learning-plan/stream-content/${userId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          courseId: courseId,
+          subjectName: subjectName,
+          conceptName: conceptName,
+        }),
+      }
+    );
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Request failed: ${response.statusText}`);
+    }
+
+    // Extract subject name from response headers
+    const subjectFromHeader = response.headers.get("X-Subject-Name");
+    console.log("📚 Subject from header:", subjectFromHeader);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullContent = "";
+    let topicName: string | undefined;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+
+      if (chunk) {
+        fullContent += chunk;
+
+        // Extract topic name from first line if it contains "TOPIC:"
+        if (!topicName && fullContent.includes("TOPIC:")) {
+          const lines = fullContent.split("\n");
+          const topicLine = lines.find((line) => line.includes("TOPIC:"));
+          if (topicLine) {
+            topicName = topicLine.replace("TOPIC:", "").trim();
+            console.log(`📌 Extracted topic name: ${topicName}`);
+          }
+        }
+
+        onChunk?.(chunk);
+      }
+    }
+
+    console.log("✅ Content streaming completed");
+    console.log(`   Topic: ${topicName}`);
+    onComplete?.(topicName);
+  } catch (error) {
+    console.error("❌ Error in content generation:", error);
+    const errorObj =
+      error instanceof Error ? error : new Error("An unknown error occurred");
+    onError?.(errorObj);
+  }
+};
+
+
+/**
+ * Mark a topic as completed
+ *
+ * @param userId - The user's ID
+ * @param courseId - The learning plan/course ID
+ * @param subjectName - The subject name
+ * @param topicName - The topic name that was completed
+ * @param contentSnapshot - Optional brief summary of content delivered
+ * @returns Promise with success status and completion stats
+ */
+export const markTopicComplete = async (
+  userId: string,
+  courseId: string,
+  subjectName: string,
+  topicName: string,
+  contentSnapshot?: string
+): Promise<{
+  success: boolean;
+  data?: {
+    message: string;
+    completionStats: {
+      totalCompleted: number;
+      subjectName?: string;
+      subjectsBreakdown?: Record<string, number>;
+    };
+    topicName: string;
+    completedAt: string;
+  };
+  error?: string;
+}> => {
+  try {
+    console.log(`✅ Marking topic as complete: ${topicName}`);
+
+    const response = await fetch(
+      `${API_BASE_URL}/learning-plan/mark-topic-complete/${userId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          courseId: courseId,
+          subjectName: subjectName,
+          topicName: topicName,
+          contentSnapshot: contentSnapshot,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Topic marked as complete:", data);
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("❌ Error marking topic complete:", error);
+    return {
+      success: false,
+      error: (error as Error).message || "Failed to mark topic as complete",
+    };
+  }
+};
+
+
+/**
+ * Get completion statistics for a course or subject
+ *
+ * @param userId - The user's ID
+ * @param courseId - The learning plan/course ID
+ * @param subjectName - Optional subject name filter
+ * @returns Promise with completion statistics
+ */
+export const getCompletionStats = async (
+  userId: string,
+  courseId: string,
+  subjectName?: string
+): Promise<{
+  success: boolean;
+  data?: {
+    userId: string;
+    courseId: string;
+    totalCompleted: number;
+    subjectName?: string;
+    subjectsBreakdown?: Record<string, number>;
+  };
+  error?: string;
+}> => {
+  try {
+    const url = new URL(`${API_BASE_URL}/learning-plan/completion-stats/${userId}/${courseId}`);
+    if (subjectName) {
+      url.searchParams.append('subject_name', subjectName);
+    }
+
+    console.log(`📊 Fetching completion stats for course: ${courseId}`);
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("📊 Completion stats:", data);
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("❌ Error fetching completion stats:", error);
+    return {
+      success: false,
+      error: (error as Error).message || "Failed to fetch completion stats",
+    };
+  }
+};

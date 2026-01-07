@@ -3,12 +3,16 @@
 import {create} from 'zustand';
 import { fetchLearningPlans } from '../api/learningPlanApi';
 
+export interface Concept {
+    name: string;
+    depth: number; // 1-10 scale
+}
+
 export interface Subjects {
     name: string;
-    concepts?: { name: string }[];
+    concepts?: Concept[];
     depth: string;
     duration: number;
-
 }
 
 
