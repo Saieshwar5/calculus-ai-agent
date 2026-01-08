@@ -8,7 +8,6 @@ import { streamLearningPlanQuery } from "@/app/api/learningPlanApi";
 import SearchContainer from "../components/searchContainer/searchContainer";
 import ChatPage from "../components/chatPage";
 import HelperPage from "../components/helperPage";
-import ResizableLayout from "../components/resizableLayout";
 
 export default function HomePage() {
   const { messages, isTyping, handleQuery, addMessage, setTyping } = useQueryStore();
@@ -182,29 +181,12 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full">
-      {/* Resizable Layout with ChatPage/ContentDisplay and HelperPage */}
-      <div className="flex-1 overflow-hidden pb-5 relative"
-      style={{
-        marginRight: helperVisible ? '0px' : '150px',
-      }}
-      >
-        <ResizableLayout
-          leftChild={
-            <div className="h-full w-full overflow-y-auto">
-              <ChatPage messages={messages} isTyping={isTyping} showExamples={true} />
-            </div>
-          }
-          rightChild={
-            <div className="h-full w-full">
-              <HelperPage isVisible={helperVisible} />
-            </div>
-          }
-          rightVisible={helperVisible}
-          onRightToggle={toggleHelper}
-          defaultLeftWidth={70}
-          defaultRightWidth={30}
-        />
+    <div className="flex flex-col h-screen w-full items-center">
+  
+      <div className="flex-1 overflow-hidden pb-10 relative overflow-y-auto w-full flex justify-center">
+        <div className="w-full max-w-6xl px-6 md:px-12">
+          <ChatPage messages={messages} isTyping={isTyping} showExamples={true} />
+        </div>
       </div>
 
       {/* Search Container at Bottom */}

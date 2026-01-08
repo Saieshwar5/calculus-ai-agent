@@ -42,7 +42,7 @@ export default function ChatPage({ messages, isTyping, showExamples = false }: C
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 py-6 space-y-4 h-full"
+      className="flex-1 py-6 space-y-4 h-full pb-[28rem] w-full"
     >
       {displayMessages.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 mt-20">
@@ -65,7 +65,11 @@ export default function ChatPage({ messages, isTyping, showExamples = false }: C
               >
                 <div
                   className={`${
-                    message.learningPlan ? "max-w-[95%]" : "max-w-[80%] lg:max-w-[70%]"
+                    isUser
+                      ? "max-w-[70%]"
+                      : message.learningPlan
+                        ? "max-w-[98%]"
+                        : "max-w-[95%]"
                   } px-4 py-3 rounded-2xl ${
                     isUser
                       ? "bg-white text-black rounded-br-none"
