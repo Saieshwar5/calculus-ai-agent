@@ -151,7 +151,7 @@ export default function LeftSideBar1({ changeSidebarState, expanded , onProfileC
 
       {/* Expanded Container - Only visible when expanded, takes remaining space */}
       <div 
-        className={`flex-col bg-gray-50 h-full border-l border-gray-200 ${expanded ? "flex flex-1" : "hidden"}`}
+        className={`flex-col overflow-auto bg-gray-50 h-full border-l border-gray-200 ${expanded ? "flex flex-1" : "hidden"}`}
       >
         {activeItem === "learning" ? (
           <LearningList onAddClick={handleAddClick} />

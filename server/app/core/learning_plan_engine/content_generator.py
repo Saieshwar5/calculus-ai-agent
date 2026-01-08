@@ -150,10 +150,14 @@ async def build_content_generation_prompt(
     semantic_memory: Optional[CourseSemanticMemory],
     learning_preferences: Optional[LearningPreference],
     completed_topics: List[str],
-    concept_name: Optional[str] = None
+    concept_name: str
 ) -> str:
     """
     Build comprehensive prompt for content generation.
+
+    AI will determine the most important topic within the given concept based on
+    user context (semantic memory, prior knowledge) and course context (learning plan,
+    completed topics).
 
     Args:
         learning_plan: LearningPlan object
@@ -161,7 +165,7 @@ async def build_content_generation_prompt(
         semantic_memory: Optional CourseSemanticMemory object
         learning_preferences: Optional LearningPreference object
         completed_topics: List of already completed topic names
-        concept_name: Optional specific concept to teach (if None, AI determines next topic)
+        concept_name: Concept name from learning plan (required - AI determines topic within it)
 
     Returns:
         Formatted prompt string
@@ -250,78 +254,44 @@ This is the FIRST topic in this subject. Start with foundational concepts that w
 a strong base for future learning.
 """)
 
-    # Section 6: Task Instructions
-    if concept_name:
-        # Specific concept requested - generate content for it
-        prompt_parts.append(f"""
+    # Section 6: Task Instructions (Concept-based topic selection)
+    # User provides concept; AI determines the most important topic within it
+    prompt_parts.append(f"""
 YOUR TASK:
 
-The student has specifically requested to learn about: "{concept_name}"
+The student wants to learn about the concept: "{concept_name}"
 
-1. FORMAT YOUR RESPONSE:
-   The VERY FIRST LINE must be:
-   TOPIC: {concept_name}
+You must intelligently determine the MOST IMPORTANT TOPIC within this concept for THIS SPECIFIC USER.
 
-   Then skip a line and begin your educational content.
+1. ANALYZE USER CONTEXT TO DETERMINE THE BEST TOPIC:
+   - Review the student's background, prior knowledge, and learning motivation
+   - Consider what they've already completed ({len(completed_topics)} topics done)
+   - Choose ONE focused topic within "{concept_name}" that:
+     * Matches their current knowledge level
+     * Builds logically on what they've learned
+     * Addresses gaps in their understanding
+     * Is most relevant to their learning goals
+     * Has NOT been completed yet
 
-2. GENERATE COMPREHENSIVE CONTENT FOR "{concept_name}":
-   Your educational content should include:
-   - Clear introduction to this concept and why it matters
-   - Core principles and fundamental understanding
-   - Detailed explanations appropriate for {subject['depth']} level
-   - Examples tailored to the student's background and interests
-   - Content that matches the student's learning preferences
-   - If appropriate: practice exercises, real-world applications, or analogies
-
-3. CONTENT GUIDELINES:
-   - Write in a clear, engaging style that encourages learning
-   - Focus on depth over breadth for this ONE concept
-   - Make connections to their goals and motivation
-   - Estimate 15-30 minutes of learning content
-   - End with a brief summary or key takeaways
-
-EXAMPLE FORMAT:
-TOPIC: {concept_name}
-
-[Introduction paragraph explaining what this concept is and why it's important]
-
-## [Section 1 heading]
-[Detailed content...]
-
-## [Section 2 heading]
-[Detailed content...]
-
-[Continue with comprehensive content matching student preferences]
-
-## Key Takeaways
-- [Summary point 1]
-- [Summary point 2]
-...
-
-Now, generate comprehensive learning content for "{concept_name}"!
-""")
-    else:
-        # No specific concept - AI determines next topic
-        prompt_parts.append(f"""
-YOUR TASK:
-
-1. DETERMINE THE NEXT TOPIC:
-   - Based on the {num_concepts} concepts listed and the {len(completed_topics)} completed topics
-   - Choose a topic that follows a logical learning progression
-   - Ensure it matches the "{subject['depth']}" depth level
-   - Make sure it has NOT been completed yet
-   - Consider what would make sense to learn next given what they've already covered
+   Example: If concept is "Limits" and student is a beginner, start with "Introduction to Limits".
+   If they've completed basics, move to "One-sided Limits" or "Limit Laws", etc.
 
 2. FORMAT YOUR RESPONSE:
-   The VERY FIRST LINE must be:
-   TOPIC: [Clear, specific topic name]
+   The VERY FIRST TWO LINES must be:
+   TOPIC: [Your chosen specific topic name]
+   DEPTH_INCREMENT: [1, 2, or 3]
 
    Then skip a line and begin your educational content.
 
-3. GENERATE COMPREHENSIVE CONTENT:
+   DEPTH_INCREMENT guidelines:
+   - 1: Introductory/foundational topic
+   - 2: Intermediate topic with new concepts
+   - 3: Advanced/complex topic requiring synthesis
+
+3. GENERATE COMPREHENSIVE CONTENT FOR THIS TOPIC:
    Your educational content should include:
-   - Clear introduction to the topic and why it matters
-   - Core concepts and fundamental principles
+   - Clear introduction to this topic and why it matters within "{concept_name}"
+   - Core principles and fundamental understanding
    - Detailed explanations appropriate for {subject['depth']} level
    - Examples tailored to the student's background and interests
    - Content that matches the student's learning preferences
@@ -329,13 +299,14 @@ YOUR TASK:
 
 4. CONTENT GUIDELINES:
    - Write in a clear, engaging style that encourages learning
-   - Avoid overwhelming the student - focus on depth over breadth for this ONE topic
+   - Focus on depth over breadth for this ONE topic
    - Make connections to their goals and motivation
    - Estimate 15-30 minutes of learning content
    - End with a brief summary or key takeaways
 
 EXAMPLE FORMAT:
-TOPIC: [Your chosen topic name]
+TOPIC: [Specific topic you've chosen]
+DEPTH_INCREMENT: [1-3]
 
 [Introduction paragraph explaining what this topic is and why it's important]
 
@@ -352,7 +323,7 @@ TOPIC: [Your chosen topic name]
 - [Summary point 2]
 ...
 
-Now, determine the next appropriate topic and generate comprehensive learning content!
+Now, analyze the user context and determine the best topic within "{concept_name}", then generate comprehensive learning content!
 """)
 
     return "\n".join(prompt_parts)
@@ -366,13 +337,14 @@ async def stream_content_generation(
     semantic_memory: Optional[CourseSemanticMemory],
     learning_preferences: Optional[LearningPreference],
     completed_topics: List[str],
-    concept_name: Optional[str] = None
-) -> Tuple[AsyncGenerator[str, None], Optional[str]]:
+    concept_name: str
+) -> Tuple[AsyncGenerator[str, None], Optional[str], int]:
     """
     Stream educational content generation from OpenAI.
 
     This function builds a comprehensive prompt and streams the AI-generated
-    educational content. It also extracts the topic name from the response.
+    educational content. AI determines the most important topic within the given
+    concept based on user and course context.
 
     Args:
         user_id: User identifier
@@ -382,10 +354,10 @@ async def stream_content_generation(
         semantic_memory: Optional CourseSemanticMemory
         learning_preferences: Optional LearningPreference
         completed_topics: List of completed topic names
-        concept_name: Optional specific concept to teach (if None, AI determines next topic)
+        concept_name: Concept name from learning plan (AI determines specific topic within it)
 
     Returns:
-        Tuple of (async generator yielding content chunks, topic name extracted from response)
+        Tuple of (async generator yielding content chunks, topic name extracted from response, depth increment 1-3)
     """
     # Build comprehensive prompt
     try:
@@ -404,11 +376,7 @@ async def stream_content_generation(
         return error_generator(), None
 
     # Create messages for OpenAI
-    user_message = (
-        f"Generate comprehensive learning content for: {concept_name}"
-        if concept_name
-        else f"Generate comprehensive learning content for the next topic in {subject_name}."
-    )
+    user_message = f"Generate comprehensive learning content for the most important topic within the concept: {concept_name}"
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -420,13 +388,13 @@ async def stream_content_generation(
     temperature = float(os.getenv("CONTENT_GENERATION_TEMPERATURE", "0.7"))
 
     print(f"🎓 Generating content for {subject_name} (user: {user_id}, course: {course_id})")
-    if concept_name:
-        print(f"   Requested concept: {concept_name}")
+    print(f"   Concept: {concept_name}")
     print(f"   Completed topics: {len(completed_topics)}")
     print(f"   Model: {model}, Temperature: {temperature}")
 
-    # Topic name will be extracted from the first line
+    # Topic name and depth increment will be extracted from first lines
     topic_name_holder = {"topic": None}
+    depth_increment_holder = {"depth": 1}  # Default to 1 if not found
     full_response = {"content": ""}
 
     async def response_generator():
@@ -445,12 +413,26 @@ async def stream_content_generation(
 
                     # Extract topic name from first line if not yet found
                     if not topic_name_holder["topic"] and "TOPIC:" in full_response["content"]:
-                        lines = full_response["content"].split("\n", 2)
-                        if len(lines) > 0:
-                            topic_line = lines[0]
-                            if "TOPIC:" in topic_line:
-                                topic_name_holder["topic"] = topic_line.replace("TOPIC:", "").strip()
+                        lines = full_response["content"].split("\n")
+                        for line in lines:
+                            if "TOPIC:" in line:
+                                topic_name_holder["topic"] = line.replace("TOPIC:", "").strip()
                                 print(f"   📌 Topic extracted: {topic_name_holder['topic']}")
+                                break
+
+                    # Extract depth increment from second line if not yet found
+                    if depth_increment_holder["depth"] == 1 and "DEPTH_INCREMENT:" in full_response["content"]:
+                        lines = full_response["content"].split("\n")
+                        for line in lines:
+                            if "DEPTH_INCREMENT:" in line:
+                                try:
+                                    depth_str = line.replace("DEPTH_INCREMENT:", "").strip()
+                                    depth_increment_holder["depth"] = int(depth_str)
+                                    print(f"   📊 Depth increment extracted: {depth_increment_holder['depth']}")
+                                except ValueError:
+                                    print(f"   ⚠️ Could not parse depth increment, using default: 1")
+                                    depth_increment_holder["depth"] = 1
+                                break
 
                     yield content
 
@@ -461,7 +443,7 @@ async def stream_content_generation(
             print(f"❌ Error in content generation: {str(e)}")
             yield error_message
 
-    return response_generator(), topic_name_holder.get("topic")
+    return response_generator(), topic_name_holder.get("topic"), depth_increment_holder.get("depth")
 
 
 def extract_topic_name_from_content(content: str) -> Optional[str]:
@@ -479,10 +461,39 @@ def extract_topic_name_from_content(content: str) -> Optional[str]:
     if not content:
         return None
 
-    lines = content.split("\n", 2)
-    if len(lines) > 0:
-        first_line = lines[0].strip()
-        if "TOPIC:" in first_line:
-            return first_line.replace("TOPIC:", "").strip()
+    lines = content.split("\n")
+    for line in lines[:5]:  # Check first 5 lines
+        if "TOPIC:" in line:
+            return line.replace("TOPIC:", "").strip()
 
     return None
+
+
+def extract_depth_increment_from_content(content: str) -> int:
+    """
+    Extract depth increment from generated content.
+
+    Looks for "DEPTH_INCREMENT: [number]" pattern in the first few lines.
+
+    Args:
+        content: Full generated content
+
+    Returns:
+        Extracted depth increment (1-3), defaults to 1 if not found
+    """
+    if not content:
+        return 1
+
+    lines = content.split("\n")
+    for line in lines[:5]:  # Check first 5 lines
+        if "DEPTH_INCREMENT:" in line:
+            try:
+                depth_str = line.replace("DEPTH_INCREMENT:", "").strip()
+                depth = int(depth_str)
+                # Validate range
+                if 1 <= depth <= 3:
+                    return depth
+            except ValueError:
+                pass
+
+    return 1  # Default

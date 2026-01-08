@@ -12,7 +12,7 @@ export default function LearningPlanPage() {
   const planId = params.planId as string
 
   const { plans, fetchPlans, isLoading, addSelectedPlan } = useLearningPlanStore()
-  const { startContentGeneration } = useContentGenerationStore()
+  const { startContentGeneration, setCurrentConcept } = useContentGenerationStore()
   const [plan, setPlan] = useState<LearningPlan | null>(null)
   const [expandedSubjects, setExpandedSubjects] = useState<Set<number>>(new Set())
   const [hasFetched, setHasFetched] = useState(false)
@@ -87,6 +87,9 @@ export default function LearningPlanPage() {
       console.log("   Course ID:", planId);
       console.log("   Subject:", subjectName);
       console.log("   Concept:", conceptName);
+
+      // Set current concept in store for progress tracking
+      setCurrentConcept(conceptName);
 
       // Start content generation
       await startContentGeneration(userId, planId, subjectName, conceptName);

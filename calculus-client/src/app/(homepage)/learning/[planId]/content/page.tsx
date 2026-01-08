@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useContentGenerationStore } from "@/app/context/contentGenerationStore";
 import ContentDisplay from "@/app/components/ContentDisplay";
 import { FaArrowLeft } from "react-icons/fa";
@@ -10,7 +11,29 @@ export default function ContentPage() {
   const router = useRouter();
   const planId = params.planId as string;
 
-  const { currentContent, isStreaming, isLoading, error } = useContentGenerationStore();
+  const {
+    currentContent,
+    isStreaming,
+    isLoading,
+    error,
+    currentCourseId,
+    currentSubjectName,
+    currentConceptName,
+    loadTopicHistory,
+  } = useContentGenerationStore();
+
+  // Load topic history when concept context is available
+  useEffect(() => {
+    if (currentCourseId && currentSubjectName && currentConceptName) {
+      console.log("📚 Loading topic history for navigation");
+      loadTopicHistory(
+        "123e4567-e89b-12d3-b456-426613479", // TODO: use auth context
+        currentCourseId,
+        currentSubjectName,
+        currentConceptName
+      );
+    }
+  }, [currentCourseId, currentSubjectName, currentConceptName, loadTopicHistory]);
 
   const handleBack = () => {
     console.log("⬅️ Navigating back to learning plan");
@@ -51,7 +74,7 @@ export default function ContentPage() {
           </div>
         ) : (
           <ContentDisplay
-            userId="123e4567-e89b-12d3-a456-426613479"
+            userId="123e4567-e89b-12d3-b456-426613479"
             onComplete={handleContentComplete}
           />
         )}

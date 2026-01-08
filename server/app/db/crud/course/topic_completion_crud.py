@@ -16,8 +16,11 @@ async def create_topic_completion(
     user_id: str,
     course_id: str,
     subject_name: str,
+    concept_name: str,
     topic_name: str,
-    content_snapshot: Optional[str] = None
+    depth_increment: int = 1,
+    content_snapshot: Optional[str] = None,
+    full_content: Optional[str] = None
 ) -> TopicCompletion:
     """
     Create a topic completion record.
@@ -27,8 +30,11 @@ async def create_topic_completion(
         user_id: User identifier
         course_id: Course identifier
         subject_name: Subject name from learning plan
+        concept_name: Concept name from learning plan
         topic_name: Topic name that was completed
+        depth_increment: How much depth this topic adds (1-3)
         content_snapshot: Optional brief snapshot of content delivered
+        full_content: Optional full educational content for navigation history
 
     Returns:
         Created TopicCompletion object
@@ -37,18 +43,21 @@ async def create_topic_completion(
         ValueError: If topic completion already exists
     """
     # Check if already completed
-    existing = await is_topic_completed(db, user_id, course_id, subject_name, topic_name)
+    existing = await is_topic_completed(db, user_id, course_id, subject_name, concept_name, topic_name)
     if existing:
-        raise ValueError(f"Topic '{topic_name}' already marked as completed for this subject")
+        raise ValueError(f"Topic '{topic_name}' already marked as completed for this concept")
 
     topic_completion = TopicCompletion(
         user_id=user_id,
         course_id=course_id,
         subject_name=subject_name,
+        concept_name=concept_name,
         topic_name=topic_name,
+        depth_increment=depth_increment,
         completed=True,
         completed_at=datetime.now(),
         content_snapshot=content_snapshot,
+        full_content=full_content,
         created_at=datetime.now()
     )
 
@@ -56,7 +65,7 @@ async def create_topic_completion(
     await db.commit()
     await db.refresh(topic_completion)
 
-    print(f"✅ Topic completed: {subject_name} → {topic_name}")
+    print(f"✅ Topic completed: {subject_name} → {concept_name} → {topic_name} (depth +{depth_increment})")
     return topic_completion
 
 
@@ -64,7 +73,8 @@ async def get_completed_topics(
     db: AsyncSession,
     user_id: str,
     course_id: str,
-    subject_name: Optional[str] = None
+    subject_name: Optional[str] = None,
+    concept_name: Optional[str] = None
 ) -> List[str]:
     """
     Get list of completed topic names.
@@ -74,6 +84,7 @@ async def get_completed_topics(
         user_id: User identifier
         course_id: Course identifier
         subject_name: Optional filter by subject name
+        concept_name: Optional filter by concept name
 
     Returns:
         List of completed topic names
@@ -87,6 +98,9 @@ async def get_completed_topics(
     if subject_name:
         query = query.where(TopicCompletion.subject_name == subject_name)
 
+    if concept_name:
+        query = query.where(TopicCompletion.concept_name == concept_name)
+
     query = query.order_by(TopicCompletion.completed_at.asc())
 
     result = await db.execute(query)
@@ -97,7 +111,8 @@ async def get_completed_topic_objects(
     db: AsyncSession,
     user_id: str,
     course_id: str,
-    subject_name: Optional[str] = None
+    subject_name: Optional[str] = None,
+    concept_name: Optional[str] = None
 ) -> List[TopicCompletion]:
     """
     Get list of completed topic objects (full records).
@@ -107,6 +122,7 @@ async def get_completed_topic_objects(
         user_id: User identifier
         course_id: Course identifier
         subject_name: Optional filter by subject name
+        concept_name: Optional filter by concept name
 
     Returns:
         List of TopicCompletion objects
@@ -120,6 +136,9 @@ async def get_completed_topic_objects(
     if subject_name:
         query = query.where(TopicCompletion.subject_name == subject_name)
 
+    if concept_name:
+        query = query.where(TopicCompletion.concept_name == concept_name)
+
     query = query.order_by(TopicCompletion.completed_at.asc())
 
     result = await db.execute(query)
@@ -131,6 +150,7 @@ async def is_topic_completed(
     user_id: str,
     course_id: str,
     subject_name: str,
+    concept_name: str,
     topic_name: str
 ) -> bool:
     """
@@ -141,6 +161,7 @@ async def is_topic_completed(
         user_id: User identifier
         course_id: Course identifier
         subject_name: Subject name
+        concept_name: Concept name
         topic_name: Topic name
 
     Returns:
@@ -151,6 +172,7 @@ async def is_topic_completed(
             TopicCompletion.user_id == user_id,
             TopicCompletion.course_id == course_id,
             TopicCompletion.subject_name == subject_name,
+            TopicCompletion.concept_name == concept_name,
             TopicCompletion.topic_name == topic_name,
             TopicCompletion.completed == True
         )
@@ -220,11 +242,44 @@ async def get_completion_stats(
     return stats
 
 
+async def get_topic_history_with_content(
+    db: AsyncSession,
+    user_id: str,
+    course_id: str,
+    subject_name: str,
+    concept_name: str
+) -> List[TopicCompletion]:
+    """
+    Get all completed topics with full content for navigation, ordered by completion time.
+
+    Args:
+        db: Database session
+        user_id: User identifier
+        course_id: Course identifier
+        subject_name: Subject name
+        concept_name: Concept name
+
+    Returns:
+        List of TopicCompletion objects with full content, ordered by completed_at ascending
+    """
+    query = select(TopicCompletion).where(
+        TopicCompletion.user_id == user_id,
+        TopicCompletion.course_id == course_id,
+        TopicCompletion.subject_name == subject_name,
+        TopicCompletion.concept_name == concept_name,
+        TopicCompletion.completed == True
+    ).order_by(TopicCompletion.completed_at.asc())
+
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
 async def delete_topic_completion(
     db: AsyncSession,
     user_id: str,
     course_id: str,
     subject_name: str,
+    concept_name: str,
     topic_name: str
 ) -> bool:
     """
@@ -235,6 +290,7 @@ async def delete_topic_completion(
         user_id: User identifier
         course_id: Course identifier
         subject_name: Subject name
+        concept_name: Concept name
         topic_name: Topic name
 
     Returns:
@@ -244,6 +300,7 @@ async def delete_topic_completion(
         TopicCompletion.user_id == user_id,
         TopicCompletion.course_id == course_id,
         TopicCompletion.subject_name == subject_name,
+        TopicCompletion.concept_name == concept_name,
         TopicCompletion.topic_name == topic_name
     )
 
@@ -252,7 +309,7 @@ async def delete_topic_completion(
 
     deleted = result.rowcount > 0
     if deleted:
-        print(f"✅ Deleted topic completion: {subject_name} → {topic_name}")
+        print(f"✅ Deleted topic completion: {subject_name} → {concept_name} → {topic_name}")
     return deleted
 
 

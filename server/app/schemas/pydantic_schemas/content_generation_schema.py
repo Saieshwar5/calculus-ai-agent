@@ -12,11 +12,10 @@ class ContentGenerationRequest(BaseModel):
     """
     Request schema for content generation.
 
-    Client provides course_id, subject_name, and optionally concept_name
-    to generate personalized content.
-
-    If concept_name is provided, content is generated for that specific concept.
-    Otherwise, AI determines the next logical topic to teach.
+    Client provides course_id, subject_name, and concept_name
+    to generate ONE specific topic within that concept.
+    AI will determine the next logical topic within the concept based on
+    completed topics and course context.
     """
     model_config = ConfigDict(populate_by_name=True)
 
@@ -32,10 +31,10 @@ class ContentGenerationRequest(BaseModel):
         description="Subject name from the learning plan",
         min_length=1
     )
-    concept_name: Optional[str] = Field(
-        None,
+    concept_name: str = Field(
+        ...,
         alias="conceptName",
-        description="Specific concept name to generate content for (optional)",
+        description="Concept name from the learning plan (AI will generate one topic within this concept)",
         min_length=1
     )
 
@@ -56,6 +55,7 @@ class TopicCompletionRequest(BaseModel):
     Request schema for marking a topic as completed.
 
     Client sends this after user has finished studying a topic.
+    Now includes concept_name and depth_increment for progress tracking.
     """
     model_config = ConfigDict(populate_by_name=True)
 
@@ -71,16 +71,34 @@ class TopicCompletionRequest(BaseModel):
         description="Subject name from the learning plan",
         min_length=1
     )
+    concept_name: str = Field(
+        ...,
+        alias="conceptName",
+        description="Concept name from the learning plan",
+        min_length=1
+    )
     topic_name: str = Field(
         ...,
         alias="topicName",
         description="Name of the topic that was completed",
         min_length=1
     )
+    depth_increment: int = Field(
+        ...,
+        alias="depthIncrement",
+        description="Depth added by this topic (1-3)",
+        ge=1,
+        le=3
+    )
     content_snapshot: Optional[str] = Field(
         None,
         alias="contentSnapshot",
         description="Optional brief summary of content delivered"
+    )
+    full_content: Optional[str] = Field(
+        None,
+        alias="fullContent",
+        description="Full educational content delivered (for navigation history)"
     )
 
     model_config = ConfigDict(
@@ -89,8 +107,11 @@ class TopicCompletionRequest(BaseModel):
             "example": {
                 "courseId": "thermodynamics-2025",
                 "subjectName": "Thermodynamics Fundamentals",
-                "topicName": "First Law of Thermodynamics",
-                "contentSnapshot": "Covered energy conservation principles..."
+                "conceptName": "First Law",
+                "topicName": "Energy Conservation Basics",
+                "depthIncrement": 1,
+                "contentSnapshot": "Covered energy conservation principles...",
+                "fullContent": "# Energy Conservation Basics\n\n..."
             }
         }
     )
@@ -117,14 +138,32 @@ class CompletionStats(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class ConceptProgressInfo(BaseModel):
+    """Progress information for a concept."""
+    concept_name: str = Field(..., alias="conceptName")
+    current_depth: int = Field(..., alias="currentDepth")
+    target_depth: int = Field(..., alias="targetDepth")
+    topics_completed: int = Field(..., alias="topicsCompleted")
+    progress_percent: int = Field(..., alias="progressPercent")
+    last_topic_name: Optional[str] = Field(None, alias="lastTopicName")
+    completed: bool = Field(default=False)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class TopicCompletionResponse(BaseModel):
     """
     Response schema after marking a topic as completed.
 
-    Returns success status, message, and completion statistics.
+    Returns success status, message, and concept progress information.
     """
     success: bool = Field(..., description="Whether the operation succeeded")
     message: str = Field(..., description="Human-readable message")
+    topic_id: int = Field(
+        ...,
+        alias="topicId",
+        description="Database ID of the completed topic"
+    )
     completion_stats: CompletionStats = Field(
         ...,
         alias="completionStats",
@@ -140,6 +179,16 @@ class TopicCompletionResponse(BaseModel):
         alias="completedAt",
         description="When the topic was marked complete"
     )
+    concept_progress: ConceptProgressInfo = Field(
+        ...,
+        alias="conceptProgress",
+        description="Updated concept progress"
+    )
+    next_action: str = Field(
+        ...,
+        alias="nextAction",
+        description="What user should do next: 'continue_learning' or 'concept_complete'"
+    )
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -152,7 +201,16 @@ class TopicCompletionResponse(BaseModel):
                     "subjectName": "Thermodynamics Fundamentals"
                 },
                 "topicName": "First Law of Thermodynamics",
-                "completedAt": "2025-01-07T12:00:00Z"
+                "completedAt": "2025-01-07T12:00:00Z",
+                "conceptProgress": {
+                    "conceptName": "First Law",
+                    "currentDepth": 1,
+                    "targetDepth": 7,
+                    "topicsCompleted": 1,
+                    "progressPercent": 14,
+                    "completed": False
+                },
+                "nextAction": "continue_learning"
             }
         }
     )
@@ -188,6 +246,45 @@ class AllTopicsCompletedResponse(BaseModel):
                     "totalCompleted": 10,
                     "subjectName": "Thermodynamics Fundamentals"
                 }
+            }
+        }
+    )
+
+
+class TopicHistoryItem(BaseModel):
+    """Single topic from completion history."""
+    id: int = Field(..., description="Database ID of the topic completion")
+    topic_name: str = Field(..., alias="topicName", description="Name of the topic")
+    completed_at: datetime = Field(..., alias="completedAt", description="When topic was completed")
+    full_content: Optional[str] = Field(None, alias="fullContent", description="Full educational content")
+    depth_increment: int = Field(..., alias="depthIncrement", description="Depth added (1-3)")
+    content_snapshot: Optional[str] = Field(None, alias="contentSnapshot", description="Brief summary")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class TopicHistoryResponse(BaseModel):
+    """Response containing topic history for a concept."""
+    success: bool = Field(default=True, description="Whether the operation succeeded")
+    topics: list[TopicHistoryItem] = Field(..., description="List of completed topics")
+    total_count: int = Field(..., alias="totalCount", description="Total number of topics")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "topics": [
+                    {
+                        "id": 1,
+                        "topicName": "Introduction to Forces",
+                        "completedAt": "2025-01-07T10:00:00Z",
+                        "fullContent": "# Introduction to Forces\n\n...",
+                        "depthIncrement": 1,
+                        "contentSnapshot": "Covered basic force concepts..."
+                    }
+                ],
+                "totalCount": 1
             }
         }
     )
