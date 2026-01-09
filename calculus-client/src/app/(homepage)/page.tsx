@@ -7,7 +7,6 @@ import { useLearningPlanStore, LearningPlan } from "@/app/context/learningPlan";
 import { streamLearningPlanQuery } from "@/app/api/learningPlanApi";
 import SearchContainer from "../components/searchContainer/searchContainer";
 import ChatPage from "../components/chatPage";
-import HelperPage from "../components/helperPage";
 
 export default function HomePage() {
   const { messages, isTyping, handleQuery, addMessage, setTyping } = useQueryStore();
@@ -184,8 +183,8 @@ export default function HomePage() {
     <div className="flex flex-col h-screen w-full items-center">
   
       <div className="flex-1 overflow-hidden pb-10 relative overflow-y-auto w-full flex justify-center">
-        <div className="w-full max-w-6xl px-6 md:px-12">
-          <ChatPage messages={messages} isTyping={isTyping} showExamples={true} />
+        <div className=" mx-auto w-full max-w-6xl px-6 md:px-12 pr-20">
+          <ChatPage messages={messages} isTyping={isTyping}/>
         </div>
       </div>
 

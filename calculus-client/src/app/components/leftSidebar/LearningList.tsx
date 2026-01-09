@@ -19,6 +19,7 @@ export default function LearningList({ onAddClick }: LearningListProps) {
   const handleAddNewLearning = () => {
     setCreatingLearningPlan(true)
     onAddClick()
+    router.push('/')
   }
 
   const handlePlanClick = (planId: string) => {

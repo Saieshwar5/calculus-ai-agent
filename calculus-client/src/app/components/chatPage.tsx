@@ -5,7 +5,6 @@ import { Message } from "@/app/types/message";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import "highlight.js/styles/github-dark.css";
 import LearningPlanCard from "./LearningPlanCard";
 
 interface ChatPageProps {
@@ -16,7 +15,7 @@ interface ChatPageProps {
 
 
 
-export default function ChatPage({ messages, isTyping, showExamples = false }: ChatPageProps) {
+export default function ChatPage({ messages, isTyping}: ChatPageProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -24,7 +23,7 @@ export default function ChatPage({ messages, isTyping, showExamples = false }: C
   const displayMessages = useMemo(() => {
     
     return messages;
-  }, [messages, showExamples]);
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
